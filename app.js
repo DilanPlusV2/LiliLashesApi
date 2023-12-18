@@ -1,0 +1,13 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const reservacionesRoute = require('./routes/reservas');
+const clientesRoute = require('./routes/clientes');
+const nominaRoute  = require('./routes/nomina');
+const usuarioRoute = require('./routes/usuarios');
+app.use(bodyParser.json());
+app.use("/reservas/",reservacionesRoute);
+app.use('/usuarios/', usuarioRoute);
+app.use('/clientes/', clientesRoute);
+app.use('/nomina/', nominaRoute);
+module.exports = app;
