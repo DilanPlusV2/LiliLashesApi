@@ -8,11 +8,6 @@
 // there is a fatal error.
 // Modifications copyright (c) 2021, Oracle and/or its affiliates.
 
-// This file was modified by Oracle on September 21, 2021.
-// The changes involve passing additional authentication factor passwords
-// to the ChangeUser Command instance.
-// Modifications copyright (c) 2021, Oracle and/or its affiliates.
-
 'use strict';
 
 const Net = require('net');
@@ -22,7 +17,7 @@ const EventEmitter = require('events').EventEmitter;
 const Readable = require('stream').Readable;
 const Queue = require('denque');
 const SqlString = require('sqlstring');
-const LRU = require('lru-cache').default;
+const LRU = require('lru-cache');
 
 const PacketParser = require('./packet_parser.js');
 const Packets = require('./packets/index.js');
@@ -52,14 +47,9 @@ class Connection extends EventEmitter {
           opts.config.host
         );
 
-        // Optionally enable keep-alive on the socket.
-        if (this.config.enableKeepAlive) {
-          this.stream.setKeepAlive(true, this.config.keepAliveInitialDelay);
-        }
-
-        // Enable TCP_NODELAY flag. This is needed so that the network packets
-        // are sent immediately to the server
-        this.stream.setNoDelay(true);
+        // Enable keep-alive on the socket.  It's disabled by default, but the
+        // user can enable it and supply an initial delay.
+        this.stream.setKeepAlive(true, this.config.keepAliveInitialDelay);
       }
       // if stream is a function, treat it as "stream agent / factory"
     } else if (typeof opts.config.stream === 'function')  {
@@ -75,7 +65,7 @@ class Connection extends EventEmitter {
     this._paused_packets = new Queue();
     this._statements = new LRU({
       max: this.config.maxPreparedStatements,
-      dispose: function(statement) {
+      dispose: function(key, statement) {
         statement.close();
       }
     });
@@ -101,10 +91,6 @@ class Connection extends EventEmitter {
       }
       this.packetParser.execute(data);
     });
-    this.stream.on('end', () => {
-      // emit the end event so that the pooled connection can close the connection
-      this.emit('end');
-    });
     this.stream.on('close', () => {
       // we need to set this flag everywhere where we want connection to close
       if (this._closing) {
@@ -126,7 +112,7 @@ class Connection extends EventEmitter {
       handshakeCommand.on('end', () => {
         // this happens when handshake finishes early either because there was
         // some fatal error or the server sent an error packet instead of
-        // an hello packet (for example, 'Too many connections' error)
+        // an hello packet (for example, 'Too many connactions' error)
         if (!handshakeCommand.handshake || this._fatalError || this._protocolError) {
           return;
         }
@@ -140,9 +126,9 @@ class Connection extends EventEmitter {
       });
       this.addCommand(handshakeCommand);
     }
-    // in case there was no initial handshake but we need to read sting, assume it utf-8
+    // in case there was no initiall handshake but we need to read sting, assume it utf-8
     // most common example: "Too many connections" error ( packet is sent immediately on connection attempt, we don't know server encoding yet)
-    // will be overwritten with actual encoding value as soon as server handshake packet is received
+    // will be overwrittedn with actial encoding value as soon as server handshake packet is received
     this.serverEncoding = 'utf8';
     if (this.config.connectTimeout) {
       const timeoutHandler = this._handleTimeoutError.bind(this);
@@ -188,7 +174,7 @@ class Connection extends EventEmitter {
       this.connectTimeout = null;
     }
     // Do not throw an error when a connection ends with a RST,ACK packet
-    if (err.code === 'ECONNRESET' && this._closing) {
+    if (err.errno === 'ECONNRESET' && this._closing) {
       return;
     }
     this._handleFatalError(err);
@@ -348,13 +334,9 @@ class Connection extends EventEmitter {
       ciphers: this.config.ssl.ciphers,
       key: this.config.ssl.key,
       passphrase: this.config.ssl.passphrase,
-      minVersion: this.config.ssl.minVersion,
-      maxVersion: this.config.ssl.maxVersion
+      minVersion: this.config.ssl.minVersion
     });
     const rejectUnauthorized = this.config.ssl.rejectUnauthorized;
-    const verifyIdentity = this.config.ssl.verifyIdentity;
-    const host = this.config.host;
-
     let secureEstablished = false;
     const secureSocket = new Tls.TLSSocket(this.stream, {
       rejectUnauthorized: rejectUnauthorized,
@@ -362,9 +344,6 @@ class Connection extends EventEmitter {
       secureContext: secureContext,
       isServer: false
     });
-    if (typeof host === 'string') {
-      secureSocket.setServername(host);
-    }
     // error handler for secure socket
     secureSocket.on('_tlsError', err => {
       if (secureEstablished) {
@@ -375,15 +354,7 @@ class Connection extends EventEmitter {
     });
     secureSocket.on('secure', () => {
       secureEstablished = true;
-      let callbackValue = null;
-      if (rejectUnauthorized) {
-        callbackValue = secureSocket.ssl.verifyError()
-        if (!callbackValue && typeof host === 'string' && verifyIdentity) {
-          const cert = secureSocket.ssl.getPeerCertificate(true);
-          callbackValue = Tls.checkServerIdentity(host, cert)
-        }
-      }
-      onSecure(callbackValue);
+      onSecure(rejectUnauthorized ? secureSocket.ssl.verifyError() : null);
     });
     secureSocket.on('data', data => {
       this.packetParser.execute(data);
@@ -425,15 +396,24 @@ class Connection extends EventEmitter {
     err.code = code || 'PROTOCOL_ERROR';
     this.emit('error', err);
   }
-  
-  get fatalError() {
-    return this._fatalError;
-  }
 
   handlePacket(packet) {
     if (this._paused) {
       this._paused_packets.push(packet);
       return;
+    }
+    if (packet) {
+      if (this.sequenceId !== packet.sequenceId) {
+        const err = new Error(
+          `Warning: got packets out of order. Expected ${this.sequenceId} but received ${packet.sequenceId}`
+        );
+        err.expected = this.sequenceId;
+        err.received = packet.sequenceId;
+        this.emit('warn', err); // REVIEW
+        // eslint-disable-next-line no-console
+        console.error(err.message);
+      }
+      this._bumpSequenceId(packet.numPackets);
     }
     if (this.config.debug) {
       if (packet) {
@@ -472,20 +452,6 @@ class Connection extends EventEmitter {
       }
       this.close();
       return;
-    }
-    if (packet) {
-      // Note: when server closes connection due to inactivity, Err packet ER_CLIENT_INTERACTION_TIMEOUT from MySQL 8.0.24, sequenceId will be 0
-      if (this.sequenceId !== packet.sequenceId) {
-        const err = new Error(
-          `Warning: got packets out of order. Expected ${this.sequenceId} but received ${packet.sequenceId}`
-        );
-        err.expected = this.sequenceId;
-        err.received = packet.sequenceId;
-        this.emit('warn', err); // REVIEW
-        // eslint-disable-next-line no-console
-        console.error(err.message);
-      }
-      this._bumpSequenceId(packet.numPackets);
     }
     const done = this._command.execute(packet, this);
     if (done) {
@@ -590,7 +556,7 @@ class Connection extends EventEmitter {
     this._paused = false;
     while ((packet = this._paused_packets.shift())) {
       this.handlePacket(packet);
-      // don't resume if packet handler paused connection
+      // don't resume if packet hander paused connection
       if (this._paused) {
         return;
       }
@@ -616,7 +582,7 @@ class Connection extends EventEmitter {
     const key = Connection.statementKey(options);
     const stmt = this._statements.get(key);
     if (stmt) {
-      this._statements.delete(key);
+      this._statements.del(key);
       stmt.close();
     }
     return stmt;
@@ -705,12 +671,7 @@ class Connection extends EventEmitter {
       new Commands.ChangeUser(
         {
           user: options.user || this.config.user,
-          // for the purpose of multi-factor authentication, or not, the main
-          // password (used for the 1st authentication factor) can also be
-          // provided via the "password1" option
-          password: options.password || options.password1 || this.config.password || this.config.password1,
-          password2: options.password2 || this.config.password2,
-          password3: options.password3 || this.config.password3,
+          password: options.password || this.config.password,
           passwordSha1: options.passwordSha1 || this.config.passwordSha1,
           database: options.database || this.config.database,
           timeout: options.timeout,
@@ -843,23 +804,14 @@ class Connection extends EventEmitter {
     );
   }
 
-  writeBinaryRow(column) {
-    this.writePacket(
-      Packets.BinaryRow.toPacket(column, this.serverConfig.encoding)
-    );
-  }
-
-  writeTextResult(rows, columns, binary=false) {
+  writeTextResult(rows, columns) {
     this.writeColumns(columns);
     rows.forEach(row => {
       const arrayRow = new Array(columns.length);
       columns.forEach(column => {
         arrayRow.push(row[column.name]);
       });
-      if(binary) {
-        this.writeBinaryRow(arrayRow);
-      }
-      else this.writeTextRow(arrayRow);
+      this.writeTextRow(arrayRow);
     });
     this.writeEof();
   }
