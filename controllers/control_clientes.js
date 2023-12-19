@@ -1,7 +1,7 @@
 const { where } = require('sequelize');
 const models = require('../models');
 const { Op } = require('sequelize');
-// Función registrar cliente
+// Función registrar clientee
 function guardar(req, res) {
     const post = {
         nombres: req.body.nombres,
