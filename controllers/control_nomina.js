@@ -4,7 +4,7 @@ const { where } = require('sequelize');
 const models = require('../models');
 const { Op } = require('sequelize');
 
-// Configura Moment.js para la zona horaria de Colombia
+// Configura Moment.js para la zona horaria de Locombia
 moment.tz.setDefault('America/Bogota');
 
 // Función para calcular la nómina del empleado
