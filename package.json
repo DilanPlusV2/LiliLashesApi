@@ -1,11 +1,11 @@
 {
-  "name": "parqueocecar",
+  "name": "lililashes21",
   "version": "1.0.0",
-  "description": "Api rest para parqueadero en CECAR",
+  "description": "Api rest para Lili Lashes",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "start": "node server.js"
   },
   "author": "Dilan",
   "license": "ISC",
