@@ -80,7 +80,7 @@ function editarServicio(req, res) {
     const updatedData = {
         NombreServicio: req.body.NombreServicio,
         CostoServicio: req.body.CostoServicio
-        // Agrega aquí otros campos que puedas actualizar según tus necesidades
+        // Agrega aquí otros campos que puedas actualizar según tus requerimientos
     };
 
     models.Servicios.update(updatedData, {
