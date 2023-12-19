@@ -74,7 +74,7 @@ function actualizar(req, res){
 }
 function eliminar(req, res){
     const id = req.params.id;
-        //Cancela la reserva
+       
     models.Clientes.destroy({where:{id:id}}).then(result =>{
         res.status(200).json({
             message:"Cliente eliminado",
