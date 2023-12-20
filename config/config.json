@@ -1,23 +1,23 @@
 {
   "development": {
-    "username": "root",
-    "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
+    "username": "-uroot",
+    "password": "-p2haahH1f6B2ccgH6c4HBA-cAaFEbHHGB",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "-hviaduct.proxy.rlwy.net",
     "dialect": "mysql"
   },
   "test": {
-    "username": "root",
-    "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
+    "username": "-uroot",
+    "password": "-p2haahH1f6B2ccgH6c4HBA-cAaFEbHHGB",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "-hviaduct.proxy.rlwy.net",
     "dialect": "mysql"
   },
   "production": {
-    "username": "root",
-    "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
+    "username": "-uroot",
+    "password": "-p2haahH1f6B2ccgH6c4HBA-cAaFEbHHGB",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "-hviaduct.proxy.rlwy.net",
     "dialect": "mysql"
   }
 }
