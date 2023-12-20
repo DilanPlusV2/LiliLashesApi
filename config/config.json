@@ -3,21 +3,21 @@
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "monorail.proxy.rlwy.net:16110",
     "dialect": "mysql"
   },
   "test": {
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "monorail.proxy.rlwy.net:16110",
     "dialect": "mysql"
   },
   "production": {
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
-    "host": "monorail.proxy.rlwy.net",
+    "host": "monorail.proxy.rlwy.net:16110",
     "dialect": "mysql"
   }
 }
