@@ -4,7 +4,7 @@
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
     "host": "monorail.proxy.rlwy.net",
-    "port": 16110,
+    "port": 3306,
     "dialect": "mysql"
   },
   "test": {
@@ -12,14 +12,14 @@
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
     "host": "monorail.proxy.rlwy.net",
-    "port": 16110,
+    "port": 3306,
     "dialect": "mysql"
   },
   "production": {
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
-    "port": 16110,
+    "port": 3306,
     "host": "monorail.proxy.rlwy.net",
     "dialect": "mysql"
   }
