@@ -1,7 +1,9 @@
 const http = require('http');
 const app = require('./app');
-const port = process.env.PORT || 3000;
+import {PORT} from './config.js';
+
 
 const server = http.createServer(app);
 
-server.listen(port);
+server.listen(PORT);
+console.log('Server on port', PORT);

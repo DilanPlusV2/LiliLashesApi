@@ -4,20 +4,20 @@
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
     "host": "monorail.proxy.rlwy.net",
-    "dialect": "mysql"
+    "dialect": "mysql2"
   },
   "test": {
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
     "host": "monorail.proxy.rlwy.net",
-    "dialect": "mysql"
+    "dialect": "mysql2"
   },
   "production": {
     "username": "root",
     "password": "fB-AAHCBA3BfBHf1DECH65DDbDEhG-2-",
     "database": "railway",
     "host": "monorail.proxy.rlwy.net",
-    "dialect": "mysql"
+    "dialect": "mysql2"
   }
 }
