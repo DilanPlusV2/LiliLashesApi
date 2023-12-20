@@ -1,6 +1,6 @@
 const http = require('http');
 const app = require('./app');
-import {PORT} from './config.js';
+const PORT = require('./config.js');
 
 
 const server = http.createServer(app);
