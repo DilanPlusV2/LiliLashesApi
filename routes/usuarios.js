@@ -8,7 +8,7 @@ router.post('/sign-up', usuarioController.signUp);
 router.post('/login', usuarioController.login);
 router.post('/view/:Email', checkAuthMiddleware.checkAuth, usuarioController.Mostrar);
 router.get('/mostrarf/:id', checkAuthMiddleware.checkAuth, usuarioController.Mostrarf);
-router.get('/mostrartodo/', checkAuthMiddleware.checkAuth, usuarioController.MostrarTodos);
+router.get('/mostrartodo/', usuarioController.MostrarTodos);
 router.put('/actualizarusuario/:id', checkAuthMiddleware.checkAuth, usuarioController.actualizarUsuario);
 router.put('/update/:IdUsuario', checkAuthMiddleware.checkAuth, usuarioController.cambiarContrasenaYDatos);
 router.delete('/delete/:id', checkAuthMiddleware.checkAuth, usuarioController.borrarUsuario);
