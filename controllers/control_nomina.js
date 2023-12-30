@@ -4,29 +4,67 @@ const { where } = require('sequelize');
 const models = require('../models');
 const { Op } = require('sequelize');
 
-// Configura Moment.js para la zona horaria de Troncolombia
+// Configura Moment.js para la zona horaria de Colombia
 moment.tz.setDefault('America/Bogota');
 
 // Función para calcular la nómina del empleado
-function calcularNomina(idUsuario, fechaInicio, fechaFin) {
-    // Obtén las reservas del usuario para el rango de fechas proporcionado
-    return models.Reservas.findAll({
+function calcularNomina(idUsuario) {
+    // Obtiene el primer día del mes actual
+    const primerDiaMes = moment().startOf('month');
+    
+    // Calcula las fechas de inicio y fin de la primera quincena
+    const quincena1Inicio = primerDiaMes;
+    const quincena1Fin = primerDiaMes.clone().add(14, 'days').endOf('day'); // 15 días después del primer día del mes
+    
+    // Calcula las fechas de inicio y fin de la segunda quincena
+    const quincena2Inicio = primerDiaMes.clone().add(15, 'days');
+    const quincena2Fin = primerDiaMes.clone().endOf('month'); // Último día del mes actual
+
+    // Obtén las reservas del usuario para la primera quincena
+    const primeraQuincena = models.Reservas.findAll({
         attributes: ['MontoAbonado'],
         where: {
             IdUsuario: idUsuario,
             Fecha: {
-                [models.Sequelize.Op.between]: [fechaInicio, fechaFin]
+                [Op.between]: [quincena1Inicio.format('YYYY-MM-DD'), quincena1Fin.format('YYYY-MM-DD')]
             }
         }
-    }).then(reservas => {
-        // Suma los MontoAbonado de las reservas
-        const totalMontoAbonado = reservas.reduce((total, reserva) => total + reserva.MontoAbonado, 0);
+    });
 
-        // Calcula la mitad del total (la empresa se queda con el 50%)
-        const montoEmpleado = totalMontoAbonado * 0.5;
+    // Obtén las reservas del usuario para la segunda quincena
+    const segundaQuincena = models.Reservas.findAll({
+        attributes: ['MontoAbonado'],
+        where: {
+            IdUsuario: idUsuario,
+            Fecha: {
+                [Op.between]: [quincena2Inicio.format('YYYY-MM-DD'), quincena2Fin.format('YYYY-MM-DD')]
+            }
+        }
+    });
+
+    // Realiza las consultas de manera paralela
+    return Promise.all([primeraQuincena, segundaQuincena]).then(([reservasPrimeraQuincena, reservasSegundaQuincena]) => {
+        // Suma los MontoAbonado de las reservas de cada quincena
+        const totalPrimeraQuincena = reservasPrimeraQuincena.reduce((total, reserva) => total + reserva.MontoAbonado, 0);
+        const totalSegundaQuincena = reservasSegundaQuincena.reduce((total, reserva) => total + reserva.MontoAbonado, 0);
+
+        // Calcula la mitad del total de cada quincena (la empresa se queda con el 50%)
+        const montoPrimeraQuincena = totalPrimeraQuincena * 0.5;
+        const montoSegundaQuincena = totalSegundaQuincena * 0.5;
 
         // Devuelve el resultado
-        return montoEmpleado;
+        return {
+            quincena1: {
+                inicio: quincena1Inicio.format('YYYY-MM-DD'),
+                fin: quincena1Fin.format('YYYY-MM-DD'),
+                montoEmpleado: montoPrimeraQuincena
+            },
+            quincena2: {
+                inicio: quincena2Inicio.format('YYYY-MM-DD'),
+                fin: quincena2Fin.format('YYYY-MM-DD'),
+                montoEmpleado: montoSegundaQuincena
+            }
+        };
     }).catch(error => {
         // Manejo de errores
         console.error("Error al calcular la nómina:", error);
@@ -38,15 +76,12 @@ function calcularNomina(idUsuario, fechaInicio, fechaFin) {
 function calcularNominaEmpleado(req, res) {
     const idUsuario = req.params.idUsuario;
 
-    // Obtiene las fechas actuales y de hace 15 días
-    const fechaFin = moment().format('YYYY-MM-DD');
-    const fechaInicio = moment().subtract(15, 'days').format('YYYY-MM-DD');
-
     // Calcula la nómina llamando a la función
-    calcularNomina(idUsuario, fechaInicio, fechaFin).then(montoEmpleado => {
+    calcularNomina(idUsuario).then(result => {
         res.status(200).json({
-            message: "Cálculo de nómina exitoso",
-            montoEmpleado: montoEmpleado
+            message: "Cálculo de nómina exitoso!",
+            quincena1: result.quincena1,
+            quincena2: result.quincena2
         });
     }).catch(error => {
         res.status(500).json({
@@ -55,6 +90,49 @@ function calcularNominaEmpleado(req, res) {
         });
     });
 }
+
+const calcularMontoAbonado = async (req, res) => {
+  try {
+    const mañana = moment().add(1, 'day').startOf('day'); // Obtén la fecha de mañana al principio del día
+
+    const reservas = await models.Reservas.findAll({
+      where: {
+        Fecha: {
+          [Op.gte]: mañana.toDate(),
+        },
+      },
+    });
+
+    // Inicializa un objeto para almacenar los totales por medio de pago
+    const totalesPorMedioDePago = {
+      Nequi: 0,
+      Daviplata: 0,
+      Bancolombia: 0,
+      Efectivo: 0,
+    };
+
+    // Itera sobre las reservas y suma los MontoAbonado por medio de pago
+    reservas.forEach(reserva => {
+      const medioDePago = reserva.MedioDePago;
+      totalesPorMedioDePago[medioDePago] += reserva.MontoAbonado;
+    });
+
+    // Calcula el total general sumando los totales de cada medio de pago
+    const totalMontoAbonado = Object.values(totalesPorMedioDePago).reduce((total, monto) => total + monto, 0);
+
+    // Prepara la respuesta incluyendo la fecha de mañana
+    const respuesta = {
+      fechaConsulta: mañana.format('YYYY-MM-DD'),
+      totalesPorMedioDePago,
+      totalMontoAbonado,
+    };
+
+    res.status(200).json(respuesta);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al calcular el MontoAbonado.' });
+  }
+};
 
 function guardarservicio(req, res) {
 
@@ -80,7 +158,7 @@ function editarServicio(req, res) {
     const updatedData = {
         NombreServicio: req.body.NombreServicio,
         CostoServicio: req.body.CostoServicio
-        // Agrega aquí otros campos que puedas actualizar según tus requerimientos
+        // Agrega aquí otros campos que puedas actualizar según tus necesidades
     };
 
     models.Servicios.update(updatedData, {
@@ -139,5 +217,6 @@ module.exports = {
     calcularNominaEmpleado: calcularNominaEmpleado,
     guardarservicio: guardarservicio,
     editarServicio: editarServicio,
-    eliminarServicio: eliminarServicio
+    eliminarServicio: eliminarServicio,
+    calcularMontoAbonado: calcularMontoAbonado
 };

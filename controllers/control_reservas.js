@@ -148,6 +148,7 @@ function obtenerFactura(req, res) {
     models.Reservas.findByPk(reservaId).then((reserva) => {
         if (reserva) {
             factura.Fecha = reserva.Fecha;
+            factura.Hora = reserva.Hora;
             factura.FechaRetoque = reserva.FechaRetoque;
             factura.MontoAbonado = reserva.MontoAbonado;
             factura.Nota = reserva.Nota;
