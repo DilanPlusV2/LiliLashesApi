@@ -115,36 +115,39 @@ async function calcularFechaRetoque1(fechaDeEntrada1, idReserva) {
 }
 
 // Actualizamos reserva
-function actualizar(req, res) {
+async function actualizar(req, res) {
     const id = req.params.id;
     const fechaDeEntrada1 = req.body.Fecha; // Obtén la fecha de entrada del cuerpo de la solicitud
-    const fechaRetoque1 = calcularFechaRetoque1(fechaDeEntrada1, id); // Calcula la nueva fecha de retoque
 
-    const ReservacionActualizada = {
-        Fecha: req.body.Fecha,
-        Hora: req.body.Hora,
-        FechaRetoque: fechaRetoque1, // Asigna la nueva fecha de retoque
-        MontoAbonado: req.body.MontoAbonado,
-        MedioDePago: req.body.MedioDePago,
-        IdUsuario: req.body.IdUsuario,
-        Tamanio: req.body.Tamanio,
-        Nota: req.body.Nota,
-        IdServicio: req.body.IdServicio,
-        IdCliente: req.body.IdCliente
-    };
+    try {
+        const fechaRetoque1 = await calcularFechaRetoque1(fechaDeEntrada1, id); // Calcula la nueva fecha de retoque
 
-    models.Reservas.update(ReservacionActualizada, { where: { id: id} }).then(result => {
+        const ReservacionActualizada = {
+            Fecha: req.body.Fecha,
+            Hora: req.body.Hora,
+            FechaRetoque: fechaRetoque1, // Asigna la nueva fecha de retoque
+            MontoAbonado: req.body.MontoAbonado,
+            MedioDePago: req.body.MedioDePago,
+            IdUsuario: req.body.IdUsuario,
+            Tamanio: req.body.Tamanio,
+            Nota: req.body.Nota,
+            IdServicio: req.body.IdServicio,
+            IdCliente: req.body.IdCliente
+        };
+
+        const result = await models.Reservas.update(ReservacionActualizada, { where: { id: id } });
+
         res.status(200).json({
             message: "Reserva actualizada",
             post: ReservacionActualizada,
             result: result
         });
-    }).catch(error => {
+    } catch (error) {
         res.status(500).json({
             message: "Error",
-            error: error
+            error: error.message // Mostrar el mensaje de error en la respuesta
         });
-    });
+    }
 }
 
 function cancelar(req, res){
