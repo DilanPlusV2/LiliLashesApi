@@ -6,7 +6,7 @@ function calcularFechaRetoque(fechaDeEntrada) {
     // Usamos moment.js para manipular la fecha
     const fecha = moment(fechaDeEntrada);
     // Agregamos 15 días a la fecha de entrada para obtener la fecha de retoque
-    const fechaRetoque = fecha.add(14, 'days');
+    const fechaRetoque = fecha.clone().add(14, 'days');
     // Formateamos la fecha de retoque como una cadena en el formato deseado
     const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
     return fechaRetoqueFormateada;
