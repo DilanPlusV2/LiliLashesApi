@@ -85,42 +85,69 @@ function actualizar(req, res) {
     const fechaDeEntrada = req.body.Fecha;
     const fechaRetoqueOriginal = req.body.FechaRetoque;
 
-    let fechaRetoque;
-
     // Verifica si la fecha de la reserva se ha modificado
     if (moment(fechaDeEntrada).format('YYYY-MM-DD') !== moment(fechaRetoqueOriginal).format('YYYY-MM-DD')) {
-        // Calcula la nueva fecha de retoque solo si la fecha de reserva cambia
-        fechaRetoque = calcularFechaRetoque(fechaDeEntrada);
+        // Usamos moment.js para manipular la fecha
+        const fecha = moment(fechaDeEntrada);
+        // Clonamos la fecha para evitar modificar la original
+        const fechaClonada = fecha.clone();
+        // Agregamos 15 días a la fecha clonada para obtener la fecha de retoque
+        const fechaRetoque = fechaClonada.add(14, 'days');
+        // Formateamos la fecha de retoque como una cadena en el formato deseado
+        const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
+        
+        const ReservacionActualizada = {
+            Fecha: req.body.Fecha,
+            Hora: req.body.Hora,
+            FechaRetoque: fechaRetoqueFormateada,
+            MontoAbonado: req.body.MontoAbonado,
+            MedioDePago: req.body.MedioDePago,
+            IdUsuario: req.body.IdUsuario,
+            Tamanio: req.body.Tamanio,
+            Nota: req.body.Nota,
+            IdServicio: req.body.IdServicio,
+            IdCliente: req.body.IdCliente
+        };
+
+        models.Reservas.update(ReservacionActualizada, { where: { id: id } }).then(result => {
+            res.status(200).json({
+                message: "Reserva actualizada",
+                post: ReservacionActualizada,
+                result: result
+            });
+        }).catch(error => {
+            res.status(500).json({
+                message: "Error",
+                error: error
+            });
+        });
     } else {
-        // Usa la fecha de retoque original si la fecha de reserva no cambia
-        fechaRetoque = fechaRetoqueOriginal;
+        // Si la fecha de la reserva no cambia, simplemente actualizamos otros campos
+        const ReservacionActualizada = {
+            Fecha: req.body.Fecha,
+            Hora: req.body.Hora,
+            MontoAbonado: req.body.MontoAbonado,
+            MedioDePago: req.body.MedioDePago,
+            IdUsuario: req.body.IdUsuario,
+            Tamanio: req.body.Tamanio,
+            Nota: req.body.Nota,
+            IdServicio: req.body.IdServicio,
+            IdCliente: req.body.IdCliente
+        };
+
+        models.Reservas.update(ReservacionActualizada, { where: { id: id } }).then(result => {
+            res.status(200).json({
+                message: "Reserva actualizada",
+                post: ReservacionActualizada,
+                result: result
+            });
+        }).catch(error => {
+            res.status(500).json({
+                message: "Error",
+                error: error
+            });
+        });
     }
-
-    const ReservacionActualizada = {
-        Fecha: req.body.Fecha,
-        Hora: req.body.Hora,
-        FechaRetoque: fechaRetoque,
-        MontoAbonado: req.body.MontoAbonado,
-        MedioDePago: req.body.MedioDePago,
-        IdUsuario: req.body.IdUsuario,
-        Tamanio: req.body.Tamanio,
-        Nota: req.body.Nota,
-        IdServicio: req.body.IdServicio,
-        IdCliente: req.body.IdCliente
-    };
-
-    models.Reservas.update(ReservacionActualizada, { where: { id: id } }).then(result => {
-        res.status(200).json({
-            message: "Reserva actualizada",
-            post: ReservacionActualizada,
-            result: result
-        });
-    }).catch(error => {
-        res.status(500).json({
-            message: "Error",
-            error: error
-        });
-    });
 }
 
 function cancelar(req, res){
