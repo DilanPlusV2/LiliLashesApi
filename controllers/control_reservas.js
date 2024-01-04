@@ -5,12 +5,15 @@ const moment = require('moment');
 function calcularFechaRetoque(fechaDeEntrada) {
     // Usamos moment.js para manipular la fecha
     const fecha = moment(fechaDeEntrada);
-    // Agregamos 15 días a la fecha de entrada para obtener la fecha de retoque
-    const fechaRetoque = fecha.clone().add(14, 'days');
+    // Clonamos la fecha para evitar modificar la original
+    const fechaClonada = fecha.clone();
+    // Agregamos 15 días a la fecha clonada para obtener la fecha de retoque
+    const fechaRetoque = fechaClonada.add(14, 'days');
     // Formateamos la fecha de retoque como una cadena en el formato deseado
     const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
     return fechaRetoqueFormateada;
 }
+
 function guardar(req, res) {
     const fechaDeEntrada = req.body.Fecha; // Obtiene la fecha de entrada
     const fechaRetoque = calcularFechaRetoque(fechaDeEntrada);
@@ -75,25 +78,28 @@ function show1(req, res){
         });
     });
 }
-function calcularFechaRetoque1(fechaDeEntrada1) {
-    // Usamos moment.js para manipular la fecha
-    const fecha = moment(fechaDeEntrada1);
-    // Agregamos 15 días a la fecha de entrada para obtener la fecha de retoque
-    const fechaRetoque = fecha.clone().add(14, 'days');
-    // Formateamos la fecha de retoque como una cadena en el formato deseado
-    const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
-    return fechaRetoqueFormateada;
-}
+
 // Actualizamos reserva
 function actualizar(req, res) {
     const id = req.params.id;
-    const fechaDeEntrada1 = req.body.Fecha; // Obtén la fecha de entrada del cuerpo de la solicitud
-    const fechaRetoque1 = calcularFechaRetoque1(fechaDeEntrada1); // Calcula la nueva fecha de retoque
+    const fechaDeEntrada = req.body.Fecha;
+    const fechaRetoqueOriginal = req.body.FechaRetoque;
+
+    let fechaRetoque;
+
+    // Verifica si la fecha de la reserva se ha modificado
+    if (moment(fechaDeEntrada).format('YYYY-MM-DD') !== moment(fechaRetoqueOriginal).format('YYYY-MM-DD')) {
+        // Calcula la nueva fecha de retoque solo si la fecha de reserva cambia
+        fechaRetoque = calcularFechaRetoque(fechaDeEntrada);
+    } else {
+        // Usa la fecha de retoque original si la fecha de reserva no cambia
+        fechaRetoque = fechaRetoqueOriginal;
+    }
 
     const ReservacionActualizada = {
         Fecha: req.body.Fecha,
         Hora: req.body.Hora,
-        FechaRetoque: fechaRetoque1, // Asigna la nueva fecha de retoque
+        FechaRetoque: fechaRetoque,
         MontoAbonado: req.body.MontoAbonado,
         MedioDePago: req.body.MedioDePago,
         IdUsuario: req.body.IdUsuario,
@@ -103,7 +109,7 @@ function actualizar(req, res) {
         IdCliente: req.body.IdCliente
     };
 
-    models.Reservas.update(ReservacionActualizada, { where: { id: id} }).then(result => {
+    models.Reservas.update(ReservacionActualizada, { where: { id: id } }).then(result => {
         res.status(200).json({
             message: "Reserva actualizada",
             post: ReservacionActualizada,
