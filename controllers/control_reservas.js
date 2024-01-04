@@ -81,12 +81,19 @@ function show1(req, res){
 function calcularFechaRetoque1(fechaDeEntrada1) {
     // Usamos moment.js para manipular la fecha
     const fecha = moment(fechaDeEntrada1);
-    // Agregamos 15 días a la fecha de entrada para obtener la fecha de retoque
-    const fechaRetoque = fecha.clone().add(14, 'days');
-    // Formateamos la fecha de retoque como una cadena en el formato deseado
-    const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
+    
+    // Clonamos la fecha para evitar afectar la referencia original
+    const fechaClonada = fecha.clone();
+    
+    // Agregamos 15 días a la fecha de entrada clonada para obtener la fecha de retoque
+    const fechaRetoque = fechaClonada.add(14, 'days');
+    
+    // Clonamos nuevamente antes de formatear para evitar afectar la referencia original
+    const fechaRetoqueFormateada = fechaRetoque.clone().format('YYYY-MM-DD');
+    
     return fechaRetoqueFormateada;
 }
+
 // Actualizamos reserva
 function actualizar(req, res) {
     const id = req.params.id;
