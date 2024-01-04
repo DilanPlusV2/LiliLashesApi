@@ -75,11 +75,20 @@ function show1(req, res){
         });
     });
 }
+function calcularFechaRetoque1(fechaDeEntrada1) {
+    // Usamos moment.js para manipular la fecha
+    const fecha = moment(fechaDeEntrada1);
+    // Agregamos 15 días a la fecha de entrada para obtener la fecha de retoque
+    const fechaRetoque = fecha.clone().add(14, 'days');
+    // Formateamos la fecha de retoque como una cadena en el formato deseado
+    const fechaRetoqueFormateada = fechaRetoque.format('YYYY-MM-DD');
+    return fechaRetoqueFormateada;
+}
 // Actualizamos reserva
 function actualizar(req, res) {
     const id = req.params.id;
-    const fechaDeEntrada = req.body.Fecha; // Obtén la fecha de entrada del cuerpo de la solicitud
-    const fechaRetoque = calcularFechaRetoque(fechaDeEntrada); // Calcula la nueva fecha de retoque
+    const fechaDeEntrada1 = req.body.Fecha; // Obtén la fecha de entrada del cuerpo de la solicitud
+    const fechaRetoque = calcularFechaRetoque1(fechaDeEntrada1); // Calcula la nueva fecha de retoque
 
     const ReservacionActualizada = {
         Fecha: req.body.Fecha,
