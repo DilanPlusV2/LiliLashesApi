@@ -88,12 +88,12 @@ function calcularFechaRetoque1(fechaDeEntrada1) {
 function actualizar(req, res) {
     const id = req.params.id;
     const fechaDeEntrada1 = req.body.Fecha; // Obtén la fecha de entrada del cuerpo de la solicitud
-    const fechaRetoque = calcularFechaRetoque1(fechaDeEntrada1); // Calcula la nueva fecha de retoque
+    const fechaRetoque1 = calcularFechaRetoque1(fechaDeEntrada1); // Calcula la nueva fecha de retoque
 
     const ReservacionActualizada = {
         Fecha: req.body.Fecha,
         Hora: req.body.Hora,
-        FechaRetoque: fechaRetoque, // Asigna la nueva fecha de retoque
+        FechaRetoque: fechaRetoque1, // Asigna la nueva fecha de retoque
         MontoAbonado: req.body.MontoAbonado,
         MedioDePago: req.body.MedioDePago,
         IdUsuario: req.body.IdUsuario,
