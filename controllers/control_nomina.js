@@ -4,12 +4,12 @@ const { where } = require('sequelize');
 const models = require('../models');
 const { Op } = require('sequelize');
 
-// Configura Moment.js para la zona horaria de Hawaii
-moment.tz.setDefault('Pacific/Honolulu'); 
+// Configura Moment.js para la zona horaria de Colombia
+moment.tz.setDefault('America/Bogota');
 
 // Función para calcular la nómina del empleado
 function calcularNomina(idUsuario) {
-    // Obtiene el primer día del mes actual en la zona horaria configurada
+    // Obtiene el primer día del mes actual
     const primerDiaMes = moment().startOf('month');
     
     // Calcula las fechas de inicio y fin de la primera quincena
@@ -93,7 +93,6 @@ function calcularNominaEmpleado(req, res) {
 
 const calcularMontoAbonado = async (req, res) => {
   try {
-    // Utiliza la zona horaria de Hawaii
     const mañana = moment().add(1, 'day').startOf('day'); // Obtén la fecha de mañana al principio del día
 
     const reservas = await models.Reservas.findAll({
