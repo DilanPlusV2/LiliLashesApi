@@ -36,7 +36,7 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
 
             // Añadir la cita a la fecha correspondiente
             agrupado[fechaFormateada].push({
-                nombreCliente: reserva.Cliente.nombres,
+                nombreCliente: reserva.Clientes.nombres,
                 id: reserva.id,
                 fecha: reserva.Fecha,
                 hora: reserva.Hora,
