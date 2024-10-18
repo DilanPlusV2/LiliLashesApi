@@ -26,11 +26,16 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
 
         // Agrupar las reservas por fecha respetando la zona horaria local
         const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
-            // Combinar fecha y hora de la reserva (en UTC)
-            const fechaHoraUTC = moment.utc(reserva.Fecha).add(reserva.Hora);
+            // Verificar si la reserva tiene un cliente asociado
+            if (!reserva.Cliente) {
+                console.log(`Reserva sin cliente: ${reserva.id}`);
+            }
+
+            // Combinar fecha y hora de la reserva, y asegurar que está en UTC
+            const fechaHoraUTC = new Date(reserva.Fecha);
 
             // Ajustar la fecha y hora a la zona horaria local (America/Bogota)
-            const fechaHoraLocal = fechaHoraUTC.tz('America/Bogota');
+            const fechaHoraLocal = moment(fechaHoraUTC).tz('America/Bogota');
 
             // Formatear solo la fecha correctamente según la zona horaria local
             const fechaFormateada = fechaHoraLocal.format('YYYY-MM-DD');
@@ -44,7 +49,7 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
             agrupado[fechaFormateada].push({
                 nombreCliente: reserva.Cliente ? reserva.Cliente.nombres : 'Cliente no asignado',
                 id: reserva.id,
-                fecha: reserva.Fecha,
+                fecha: fechaFormateada, // Asegurarse de usar la fecha formateada
                 hora: reserva.Hora,
                 nota: reserva.Nota,
                 IdServicio: reserva.IdServicio,
