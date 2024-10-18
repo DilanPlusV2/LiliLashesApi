@@ -9,5 +9,5 @@ router.get("/show/:IdCliente", checkAuthMiddleware.checkAuth, reservacionControl
 router.get("/show1/:IdUsuario", checkAuthMiddleware.checkAuth, reservacionController.show1);
 router.get("/servicios/", checkAuthMiddleware.checkAuth, reservacionController.servicios);
 router.post("/factura/:ReservaId", checkAuthMiddleware.checkAuth, reservacionController.obtenerFactura);
-router.get("/:IdUsuario", reservacionController.mostrarCitasAgrupadasPorLashista);
+router.get("/:IdUsuario", checkAuthMiddleware.checkAuth, reservacionController.mostrarCitasAgrupadasPorLashista);
 module.exports = router;
