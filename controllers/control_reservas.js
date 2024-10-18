@@ -1,6 +1,72 @@
 const { where, literal } = require('sequelize');
 const models = require('../models');
 const moment = require('moment');
+const { Op } = require('sequelize');
+
+
+// Mostrar reservas agrupadas por fecha con nombre del cliente, consultando por IdUsuario (Lashista)
+async function mostrarCitasAgrupadasPorLashista(req, res) {
+    try {
+        // Obtener todas las reservas del usuario (Lashista)
+        const reservas = await models.Reservas.findAll({
+            where: {
+                IdUsuario: req.params.IdUsuario
+            },
+            include: [{
+                model: models.Clientes, // Asociar el cliente a la reserva
+                attributes: ['nombres'] // Solo obtenemos el nombre del cliente
+            }],
+            order: [['Fecha', 'ASC'], ['Hora', 'ASC']] // Ordenamos por Fecha y Hora
+        });
+
+        if (reservas.length === 0) {
+            return res.status(404).json({
+                message: "No se encontraron reservas para este Lashista"
+            });
+        }
+
+        // Agrupar las reservas por fecha, respetando la zona horaria local
+        const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
+            // Usa la zona horaria adecuada, por ejemplo 'America/Bogota'
+            const fechaFormateada = moment.tz(reserva.Fecha, 'America/Bogota').format('YYYY-MM-DD');
+
+            if (!agrupado[fechaFormateada]) {
+                agrupado[fechaFormateada] = [];
+            }
+
+            // Añadir la cita a la fecha correspondiente
+            agrupado[fechaFormateada].push({
+                nombreCliente: reserva.Cliente.nombres,
+                id: reserva.id,
+                fecha: reserva.Fecha,
+                hora: reserva.Hora,
+                nota: reserva.Nota,
+                IdServicio: reserva.IdServicio,
+                MedioDePago: reserva.MedioDePago,
+                Tamanio: reserva.Tamanio,
+                IdUsuario: reserva.IdUsuario,
+                IdCliente: reserva.IdCliente,
+                createdAt: reserva.createdAt,
+                updatedAt: reserva.updatedAt // Añade más campos si lo necesitas
+            });
+
+            return agrupado;
+        }, {});
+
+        // Convertir el objeto agrupado en un array
+        const resultado = Object.keys(citasAgrupadas).map(fecha => ({
+            fecha: fecha,
+            citas: citasAgrupadas[fecha]
+        }));
+
+        res.status(200).json(resultado);
+    } catch (error) {
+        res.status(500).json({
+            message: "Error al obtener las citas",
+            error: error.message
+        });
+    }
+}
 
 function calcularFechaRetoque(fechaDeEntrada) {
     // Usamos moment.js para manipular la fecha
@@ -266,5 +332,6 @@ module.exports = {
     actualizar: actualizar,
     cancelar: cancelar,
     servicios: servicios,
-    obtenerFactura: obtenerFactura
+    obtenerFactura: obtenerFactura,
+    mostrarCitasAgrupadasPorLashista: mostrarCitasAgrupadasPorLashista
 }

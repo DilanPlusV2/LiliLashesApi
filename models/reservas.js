@@ -10,7 +10,11 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // Relación con Clientes (muchas reservas pertenecen a un cliente)
+      Reservas.belongsTo(models.Clientes, { foreignKey: 'IdCliente' });
+
+      // Relación con Usuarios (muchas reservas son gestionadas por un Lashista o empleado)
+      Reservas.belongsTo(models.Usuarios, { foreignKey: 'IdUsuario' });
     }
   }
   Reservas.init({
