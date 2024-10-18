@@ -25,25 +25,28 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
             });
         }
 
-        // Agrupar las reservas por fecha y hora local
+        // Agrupar las reservas por fecha respetando la zona horaria local
         const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
             // Verificar si la reserva tiene un cliente asociado
             if (!reserva.Cliente) {
                 console.log(`Reserva sin cliente: ${reserva.id}`);
             }
 
-            // Combina la fecha y la hora en un solo objeto de momento
-            const fechaHoraCompleta = moment.tz(`${reserva.Fecha} ${reserva.Hora}`, 'America/Bogota');
+            // Combinar fecha y hora de la reserva
+            const fechaHoraUTC = `${reserva.Fecha.split('T')[0]} ${reserva.Hora}`;
+            
+            // Ajustar la fecha y hora a la zona horaria local (America/Bogota)
+            const fechaHoraLocal = moment.tz(fechaHoraUTC, 'YYYY-MM-DD HH:mm:ss', 'America/Bogota');
+            
+            // Formatear solo la fecha correctamente según la zona horaria local
+            const fechaFormateada = fechaHoraLocal.format('YYYY-MM-DD');
 
-            // Asegúrate de formatear solo la fecha correctamente según la zona horaria local
-            const fechaFormateada = fechaHoraCompleta.format('YYYY-MM-DD');
-
-            // Verificar si la fecha ya existe en el objeto agrupado, si no, inicializar
+            // Inicializar la agrupación si no existe
             if (!agrupado[fechaFormateada]) {
                 agrupado[fechaFormateada] = [];
             }
 
-            // Añadir la cita a la fecha correspondiente, manejando el caso en el que Cliente es null
+            // Añadir la cita a la fecha correspondiente
             agrupado[fechaFormateada].push({
                 nombreCliente: reserva.Cliente ? reserva.Cliente.nombres : 'Cliente no asignado',
                 id: reserva.id,
