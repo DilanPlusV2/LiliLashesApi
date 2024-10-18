@@ -32,12 +32,12 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
                 console.log(`Reserva sin cliente: ${reserva.id}`);
             }
 
-            // Combinar fecha y hora de la reserva
-            const fechaHoraUTC = `${reserva.Fecha.split('T')[0]} ${reserva.Hora}`;
-            
+            // Combinar fecha y hora de la reserva (usando objeto Date directamente)
+            const fechaHoraUTC = new Date(reserva.Fecha);
+
             // Ajustar la fecha y hora a la zona horaria local (America/Bogota)
-            const fechaHoraLocal = moment.tz(fechaHoraUTC, 'YYYY-MM-DD HH:mm:ss', 'America/Bogota');
-            
+            const fechaHoraLocal = moment.tz(fechaHoraUTC, 'America/Bogota');
+
             // Formatear solo la fecha correctamente según la zona horaria local
             const fechaFormateada = fechaHoraLocal.format('YYYY-MM-DD');
 
