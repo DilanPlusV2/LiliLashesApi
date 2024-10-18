@@ -50,6 +50,7 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
                 IdServicio: reserva.IdServicio,
                 MedioDePago: reserva.MedioDePago,
                 Tamanio: reserva.Tamanio,
+                MontoAbonado: reserva.MontoAbonado,
                 IdUsuario: reserva.IdUsuario,
                 IdCliente: reserva.IdCliente,
                 createdAt: reserva.createdAt,
