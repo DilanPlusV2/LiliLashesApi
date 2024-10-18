@@ -3,7 +3,6 @@ const models = require('../models');
 const moment = require('moment-timezone');
 const { Op } = require('sequelize');
 
-
 // Mostrar reservas agrupadas por fecha con nombre del cliente, consultando por IdUsuario (Lashista)
 async function mostrarCitasAgrupadasPorLashista(req, res) {
     try {
@@ -27,16 +26,11 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
 
         // Agrupar las reservas por fecha respetando la zona horaria local
         const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
-            // Verificar si la reserva tiene un cliente asociado
-            if (!reserva.Cliente) {
-                console.log(`Reserva sin cliente: ${reserva.id}`);
-            }
-
-            // Combinar fecha y hora de la reserva (usando objeto Date directamente)
-            const fechaHoraUTC = new Date(reserva.Fecha);
+            // Combinar fecha y hora de la reserva (en UTC)
+            const fechaHoraUTC = moment.utc(reserva.Fecha).add(reserva.Hora);
 
             // Ajustar la fecha y hora a la zona horaria local (America/Bogota)
-            const fechaHoraLocal = moment.tz(fechaHoraUTC, 'America/Bogota');
+            const fechaHoraLocal = fechaHoraUTC.tz('America/Bogota');
 
             // Formatear solo la fecha correctamente según la zona horaria local
             const fechaFormateada = fechaHoraLocal.format('YYYY-MM-DD');
