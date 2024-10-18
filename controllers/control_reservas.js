@@ -27,16 +27,21 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
 
         // Agrupar las reservas por fecha, respetando la zona horaria local
         const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
+            // Verificar si la reserva tiene un cliente asociado
+            if (!reserva.Cliente) {
+                console.log(`Reserva sin cliente: ${reserva.id}`);
+            }
+        
             // Usa la zona horaria adecuada, por ejemplo 'America/Bogota'
             const fechaFormateada = moment.tz(reserva.Fecha, 'America/Bogota').format('YYYY-MM-DD');
-
+        
             if (!agrupado[fechaFormateada]) {
                 agrupado[fechaFormateada] = [];
             }
-
-            // Añadir la cita a la fecha correspondiente
+        
+            // Añadir la cita a la fecha correspondiente, manejando el caso en el que Cliente es null
             agrupado[fechaFormateada].push({
-                nombreCliente: reserva.Clientes.nombres,
+                nombreCliente: reserva.Cliente ? reserva.Cliente.nombres : 'Cliente no asignado', // Aquí manejamos el null
                 id: reserva.id,
                 fecha: reserva.Fecha,
                 hora: reserva.Hora,
@@ -47,11 +52,12 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
                 IdUsuario: reserva.IdUsuario,
                 IdCliente: reserva.IdCliente,
                 createdAt: reserva.createdAt,
-                updatedAt: reserva.updatedAt // Añade más campos si lo necesitas
+                updatedAt: reserva.updatedAt
             });
-
+        
             return agrupado;
         }, {});
+        
 
         // Convertir el objeto agrupado en un array
         const resultado = Object.keys(citasAgrupadas).map(fecha => ({
