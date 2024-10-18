@@ -1,6 +1,6 @@
 const { where, literal } = require('sequelize');
 const models = require('../models');
-const moment = require('moment');
+const moment = require('moment-timezone');
 const { Op } = require('sequelize');
 
 
@@ -25,22 +25,24 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
             });
         }
 
-        // Agrupar las reservas por fecha, respetando la zona horaria local
+        // Agrupar las reservas por fecha y hora local
         const citasAgrupadas = reservas.reduce((agrupado, reserva) => {
             // Verificar si la reserva tiene un cliente asociado
             if (!reserva.Cliente) {
                 console.log(`Reserva sin cliente: ${reserva.id}`);
             }
-        
-            // Formatear la fecha correctamente con la hora en la zona horaria adecuada
-            const fechaFormateada = moment.tz(reserva.Fecha, 'America/Bogota')
-                .startOf('day')  // Asegura que estés trabajando con el día completo
-                .format('YYYY-MM-DD'); // Formato de fecha
-        
+
+            // Combina la fecha y la hora en un solo objeto de momento
+            const fechaHoraCompleta = moment.tz(`${reserva.Fecha} ${reserva.Hora}`, 'America/Bogota');
+
+            // Asegúrate de formatear solo la fecha correctamente según la zona horaria local
+            const fechaFormateada = fechaHoraCompleta.format('YYYY-MM-DD');
+
+            // Verificar si la fecha ya existe en el objeto agrupado, si no, inicializar
             if (!agrupado[fechaFormateada]) {
                 agrupado[fechaFormateada] = [];
             }
-        
+
             // Añadir la cita a la fecha correspondiente, manejando el caso en el que Cliente es null
             agrupado[fechaFormateada].push({
                 nombreCliente: reserva.Cliente ? reserva.Cliente.nombres : 'Cliente no asignado',
@@ -56,10 +58,10 @@ async function mostrarCitasAgrupadasPorLashista(req, res) {
                 createdAt: reserva.createdAt,
                 updatedAt: reserva.updatedAt
             });
-        
+
             return agrupado;
         }, {});
-        
+
         // Convertir el objeto agrupado en un array
         const resultado = Object.keys(citasAgrupadas).map(fecha => ({
             fecha: fecha,
