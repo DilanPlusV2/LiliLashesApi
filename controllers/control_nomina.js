@@ -260,7 +260,6 @@ const consultarNominas = async (req, res) => {
   }
 };
 
-// POST /nomina/detallesnomina/:idUsuario
 const detallesNomina = async (req, res) => {
   try {
     const idUsuario = req.params.idUsuario;
@@ -270,38 +269,53 @@ const detallesNomina = async (req, res) => {
       return res.status(400).json({ message: 'fechaInicio y fechaFin son requeridos' });
     }
 
-    // Normalizar inicio y fin al timezone y cubrir todo el día final
+    // Normalizamos fechas para Bogotá
     const inicioDate = moment.tz(fechaInicio, 'YYYY-MM-DD', 'America/Bogota').startOf('day').toDate();
-    const finDate = moment.tz(fechaFin,  'YYYY-MM-DD', 'America/Bogota').endOf('day').toDate();
+    const finDate = moment.tz(fechaFin, 'YYYY-MM-DD', 'America/Bogota').endOf('day').toDate();
 
-    // Busca usuario (para mostrar nombre)
+    // Buscamos usuario
     const usuario = await models.Usuarios.findByPk(idUsuario);
     const nombreUsuario = usuario ? `${usuario.nombres} ${usuario.apellidos || ''}`.trim() : '';
 
-    // Trae todas las reservas del usuario en el rango (las reservas representan servicios realizados)
+    // Traer reservas del rango
     const reservas = await models.Reservas.findAll({
       where: {
         IdUsuario: idUsuario,
-        Fecha: {
-          [Op.between]: [inicioDate, finDate]
-        }
+        Fecha: { [Op.between]: [inicioDate, finDate] }
       },
       order: [['Fecha', 'ASC'], ['Hora', 'ASC']]
     });
 
-    // Agrupamos por día YYYY-MM-DD
-    const agrupado = {};
+    if (!reservas || reservas.length === 0) {
+      return res.status(200).json({
+        nombreUsuario,
+        fechaInicio,
+        fechaFin,
+        filas: [],
+        totales: { montoDia: 0, montoEmpleado: 0, montoEmpresa: 0 }
+      });
+    }
 
+    // Obtenemos servicios de una sola vez para evitar N+1
+    const servicioIds = [...new Set(reservas.map(r => r.IdServicio).filter(Boolean))];
+    const servicios = await models.Servicios.findAll({ where: { id: servicioIds } });
+    const serviciosMap = servicios.reduce((map, s) => {
+      map[s.id] = s;
+      return map;
+    }, {});
+
+    // Agrupamos por día exacto (UTC → Bogotá)
+    const agrupado = {};
     for (const reserva of reservas) {
-      const servicio = await models.Servicios.findOne({ where: { id: reserva.IdServicio } });
-      const precio = servicio ? (servicio.CostoServicio || 0) : 0;
-      const porcentajeEmpleado = servicio ? (servicio.PorcentajeEmpleado ?? 50) : 50;
+      const servicio = serviciosMap[reserva.IdServicio];
+      const precio = servicio ? (Number(servicio.CostoServicio) || 0) : 0;
+      const porcentajeEmpleado = servicio ? (Number(servicio.PorcentajeEmpleado ?? 50) || 50) : 50;
 
       const montoEmpleado = (precio * porcentajeEmpleado) / 100;
       const montoEmpresa = precio - montoEmpleado;
 
-      // Usa tz para formatear la fecha según Bogotá
-      const dia = moment.tz(reserva.Fecha, 'America/Bogota').format('YYYY-MM-DD');
+      // Fecha corregida a zona Bogotá
+      const dia = moment.utc(reserva.Fecha).tz('America/Bogota').format('YYYY-MM-DD');
 
       if (!agrupado[dia]) {
         agrupado[dia] = {
@@ -326,11 +340,13 @@ const detallesNomina = async (req, res) => {
       });
     }
 
+    // Ordenamos las filas
     const filas = Object.values(agrupado).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-    const totalEmpleado = filas.reduce((s, f) => s + f.montoEmpleado, 0);
-    const totalEmpresa = filas.reduce((s, f) => s + f.montoEmpresa, 0);
-    const totalDia = filas.reduce((s, f) => s + f.montoDia, 0);
+    // Totales
+    const totalEmpleado = filas.reduce((sum, f) => sum + f.montoEmpleado, 0);
+    const totalEmpresa = filas.reduce((sum, f) => sum + f.montoEmpresa, 0);
+    const totalDia = filas.reduce((sum, f) => sum + f.montoDia, 0);
 
     return res.status(200).json({
       nombreUsuario,
@@ -349,6 +365,7 @@ const detallesNomina = async (req, res) => {
     return res.status(500).json({ message: 'Error al generar detalles de nómina' });
   }
 };
+
 
 
 // Agrega la nueva ruta al servidor
