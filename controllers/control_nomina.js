@@ -3,92 +3,73 @@ const moment = require('moment-timezone'); // Asegúrate de utilizar moment-time
 const { where } = require('sequelize');
 const models = require('../models');
 const { Op } = require('sequelize');
+const { Nomina, Usuario } = require('../models');
 
 // Configura Moment.js para la zona horaria de Colombia
 moment.tz.setDefault('America/Bogota');
 
 // Función para calcular la nómina del empleado
-function calcularNomina(idUsuario) {
-    // Obtiene el primer día del mes actual
-    const primerDiaMes = moment().startOf('month');
-    
-    // Calcula las fechas de inicio y fin de la primera quincena
-    const quincena1Inicio = primerDiaMes;
-    const quincena1Fin = primerDiaMes.clone().add(14, 'days').endOf('day'); // 15 días después del primer día del mes
-    
-    // Calcula las fechas de inicio y fin de la segunda quincena
-    const quincena2Inicio = primerDiaMes.clone().add(15, 'days');
-    const quincena2Fin = primerDiaMes.clone().endOf('month'); // Último día del mes actual
-
-    // Obtén las reservas del usuario para la primera quincena
-    const primeraQuincena = models.Reservas.findAll({
-        attributes: ['MontoAbonado'],
-        where: {
-            IdUsuario: idUsuario,
-            Fecha: {
-                [Op.between]: [quincena1Inicio.format('YYYY-MM-DD'), quincena1Fin.format('YYYY-MM-DD')]
-            }
+async function calcularNominaPersonalizada(idUsuario, fechaInicio, fechaFin) {
+  try {
+    // Busca todas las reservas dentro del rango
+    const reservas = await models.Reservas.findAll({
+      where: {
+        IdUsuario: idUsuario,
+        Fecha: {
+          [Op.between]: [fechaInicio, fechaFin]
         }
+      }
     });
 
-    // Obtén las reservas del usuario para la segunda quincena
-    const segundaQuincena = models.Reservas.findAll({
-        attributes: ['MontoAbonado'],
-        where: {
-            IdUsuario: idUsuario,
-            Fecha: {
-                [Op.between]: [quincena2Inicio.format('YYYY-MM-DD'), quincena2Fin.format('YYYY-MM-DD')]
-            }
-        }
-    });
+    let totalEmpleado = 0;
 
-    // Realiza las consultas de manera paralela
-    return Promise.all([primeraQuincena, segundaQuincena]).then(([reservasPrimeraQuincena, reservasSegundaQuincena]) => {
-        // Suma los MontoAbonado de las reservas de cada quincena
-        const totalPrimeraQuincena = reservasPrimeraQuincena.reduce((total, reserva) => total + reserva.MontoAbonado, 0);
-        const totalSegundaQuincena = reservasSegundaQuincena.reduce((total, reserva) => total + reserva.MontoAbonado, 0);
+    // Procesa cada reserva y busca el servicio correspondiente para obtener el porcentaje
+    for (const reserva of reservas) {
+      const servicio = await models.Servicios.findOne({ where: { id: reserva.IdServicio } });
 
-        // Calcula la mitad del total de cada quincena (la empresa se queda con el 50%)
-        const montoPrimeraQuincena = totalPrimeraQuincena * 0.5;
-        const montoSegundaQuincena = totalSegundaQuincena * 0.5;
+      if (servicio) {
+        const porcentaje = servicio.PorcentajeEmpleado ?? 50;
+        totalEmpleado += (reserva.MontoAbonado * porcentaje) / 100;
+      } else {
+        console.warn(`Servicio con ID ${reserva.IdServicio} no encontrado.`);
+      }
+    }
 
-        // Devuelve el resultado
-        return {
-            quincena1: {
-                inicio: quincena1Inicio.format('YYYY-MM-DD'),
-                fin: quincena1Fin.format('YYYY-MM-DD'),
-                montoEmpleado: montoPrimeraQuincena
-            },
-            quincena2: {
-                inicio: quincena2Inicio.format('YYYY-MM-DD'),
-                fin: quincena2Fin.format('YYYY-MM-DD'),
-                montoEmpleado: montoSegundaQuincena
-            }
-        };
-    }).catch(error => {
-        // Manejo de errores
-        console.error("Error al calcular la nómina:", error);
-        throw error;
-    });
+    return {
+      inicio: moment(fechaInicio).format('YYYY-MM-DD'),
+      fin: moment(fechaFin).format('YYYY-MM-DD'),
+      montoEmpleado: totalEmpleado
+    };
+
+  } catch (error) {
+    console.error("Error al calcular la nómina personalizada:", error);
+    throw error;
+  }
 }
 
 // Endpoint para calcular la nómina
-function calcularNominaEmpleado(req, res) {
-    const idUsuario = req.params.idUsuario;
+async function calcularNominaEmpleado(req, res) {
+  const idUsuario = req.params.idUsuario;
+  const { fechaInicio, fechaFin } = req.body;
 
-    // Calcula la nómina llamando a la función
-    calcularNomina(idUsuario).then(result => {
-        res.status(200).json({
-            message: "Cálculo de nómina exitoso!",
-            quincena1: result.quincena1,
-            quincena2: result.quincena2
-        });
-    }).catch(error => {
-        res.status(500).json({
-            message: "Error al calcular la nómina",
-            error: error
-        });
+  if (!fechaInicio || !fechaFin) {
+    return res.status(400).json({
+      message: "Faltan parámetros: fechaInicio o fechaFin"
     });
+  }
+
+  try {
+    const resultado = await calcularNominaPersonalizada(idUsuario, fechaInicio, fechaFin);
+    res.status(200).json({
+      message: "Cálculo de nómina exitoso",
+      data: resultado
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al calcular la nómina",
+      error: error.message
+    });
+  }
 }
 
 const calcularMontoAbonado = async (req, res) => {
@@ -138,7 +119,8 @@ function guardarservicio(req, res) {
 
     const post = {
         NombreServicio: req.body.NombreServicio, // Utiliza la fecha de entrada sin cambios
-        CostoServicio: req.body.CostoServicio
+        CostoServicio: req.body.CostoServicio,
+        PorcentajeEmpleado: req.body.PorcentajeEmpleado
     };
     models.Servicios.create(post).then(result => {
         res.status(201).json({
@@ -157,7 +139,8 @@ function editarServicio(req, res) {
     const idServicio = req.params.id;
     const updatedData = {
         NombreServicio: req.body.NombreServicio,
-        CostoServicio: req.body.CostoServicio
+        CostoServicio: req.body.CostoServicio,
+        PorcentajeEmpleado: req.body.PorcentajeEmpleado
         // Agrega aquí otros campos que puedas actualizar según tus necesidades
     };
 
@@ -212,11 +195,171 @@ function eliminarServicio(req, res) {
     });
 }
 
+// POST /nomina/guardar
+const guardarNomina = async (req, res) => {
+  try {
+    const { IdUsuario, NombreUsuario, Pago, fechaInicio, fechaFin } = req.body;
+
+    if (!IdUsuario || !NombreUsuario || !Pago || !fechaInicio || !fechaFin) {
+      return res.status(400).json({ message: 'Datos incompletos' });
+    }
+
+    const nuevaNomina = await Nomina.create({
+      IdUsuario,
+      NombreUsuario,
+      Pago,
+      fechaInicio,
+      fechaFin
+    });
+
+    return res.status(201).json({ message: 'Nómina guardada', data: nuevaNomina });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error al guardar la nómina' });
+  }
+};
+
+// DELETE /nomina/eliminar/:id
+const eliminarNomina = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const nomina = await Nomina.findByPk(id);
+    if (!nomina) return res.status(404).json({ message: 'Nómina no encontrada' });
+
+    await nomina.destroy();
+    return res.status(200).json({ message: 'Nómina eliminada' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error al eliminar la nómina' });
+  }
+};
+
+// GET /nomina/consultar?nombre=kelly&fechaInicio=2025-07-01&fechaFin=2025-07-15
+const consultarNominas = async (req, res) => {
+  try {
+    const { nombre, fechaInicio, fechaFin } = req.query;
+    const filtro = {};
+    const { Op } = require('sequelize');
+
+    if (nombre) {
+      filtro.NombreUsuario = { [Op.like]: `%${nombre}%` };
+    }
+
+    if (fechaInicio && fechaFin) {
+      filtro.fechaInicio = { [Op.gte]: new Date(fechaInicio) };
+      filtro.fechaFin = { [Op.lte]: new Date(fechaFin) };
+    }
+
+    const resultados = await Nomina.findAll({ where: filtro });
+
+    return res.status(200).json({ data: resultados });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error al consultar las nóminas' });
+  }
+};
+
+// POST /nomina/detallesnomina/:idUsuario
+const detallesNomina = async (req, res) => {
+  try {
+    const idUsuario = req.params.idUsuario;
+    const { fechaInicio, fechaFin } = req.body;
+
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({ message: 'fechaInicio y fechaFin son requeridos' });
+    }
+
+    // Normalizar inicio y fin al timezone y cubrir todo el día final
+    const inicioDate = moment.tz(fechaInicio, 'YYYY-MM-DD', 'America/Bogota').startOf('day').toDate();
+    const finDate = moment.tz(fechaFin,  'YYYY-MM-DD', 'America/Bogota').endOf('day').toDate();
+
+    // Busca usuario (para mostrar nombre)
+    const usuario = await models.Usuarios.findByPk(idUsuario);
+    const nombreUsuario = usuario ? `${usuario.nombres} ${usuario.apellidos || ''}`.trim() : '';
+
+    // Trae todas las reservas del usuario en el rango (las reservas representan servicios realizados)
+    const reservas = await models.Reservas.findAll({
+      where: {
+        IdUsuario: idUsuario,
+        Fecha: {
+          [Op.between]: [inicioDate, finDate]
+        }
+      },
+      order: [['Fecha', 'ASC'], ['Hora', 'ASC']]
+    });
+
+    // Agrupamos por día YYYY-MM-DD
+    const agrupado = {};
+
+    for (const reserva of reservas) {
+      const servicio = await models.Servicios.findOne({ where: { id: reserva.IdServicio } });
+      const precio = servicio ? (servicio.CostoServicio || 0) : 0;
+      const porcentajeEmpleado = servicio ? (servicio.PorcentajeEmpleado ?? 50) : 50;
+
+      const montoEmpleado = (precio * porcentajeEmpleado) / 100;
+      const montoEmpresa = precio - montoEmpleado;
+
+      // Usa tz para formatear la fecha según Bogotá
+      const dia = moment.tz(reserva.Fecha, 'America/Bogota').format('YYYY-MM-DD');
+
+      if (!agrupado[dia]) {
+        agrupado[dia] = {
+          fecha: dia,
+          montoDia: 0,
+          montoEmpleado: 0,
+          montoEmpresa: 0,
+          detalles: []
+        };
+      }
+
+      agrupado[dia].montoDia += precio;
+      agrupado[dia].montoEmpleado += montoEmpleado;
+      agrupado[dia].montoEmpresa += montoEmpresa;
+      agrupado[dia].detalles.push({
+        reservaId: reserva.id,
+        idServicio: reserva.IdServicio,
+        precio,
+        porcentajeEmpleado,
+        montoEmpleado,
+        montoEmpresa
+      });
+    }
+
+    const filas = Object.values(agrupado).sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    const totalEmpleado = filas.reduce((s, f) => s + f.montoEmpleado, 0);
+    const totalEmpresa = filas.reduce((s, f) => s + f.montoEmpresa, 0);
+    const totalDia = filas.reduce((s, f) => s + f.montoDia, 0);
+
+    return res.status(200).json({
+      nombreUsuario,
+      fechaInicio,
+      fechaFin,
+      filas,
+      totales: {
+        montoDia: totalDia,
+        montoEmpleado: totalEmpleado,
+        montoEmpresa: totalEmpresa
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en detallesNomina:', error);
+    return res.status(500).json({ message: 'Error al generar detalles de nómina' });
+  }
+};
+
+
 // Agrega la nueva ruta al servidor
 module.exports = {
     calcularNominaEmpleado: calcularNominaEmpleado,
     guardarservicio: guardarservicio,
     editarServicio: editarServicio,
     eliminarServicio: eliminarServicio,
-    calcularMontoAbonado: calcularMontoAbonado
+    calcularMontoAbonado: calcularMontoAbonado,
+    consultarNominas: consultarNominas,
+    eliminarNomina: eliminarNomina,
+    guardarNomina: guardarNomina,
+    detallesNomina: detallesNomina
 };

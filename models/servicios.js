@@ -15,7 +15,12 @@ module.exports = (sequelize, DataTypes) => {
   }
   Servicios.init({
     NombreServicio: DataTypes.STRING,
-    CostoServicio: DataTypes.INTEGER
+    CostoServicio: DataTypes.INTEGER,
+    PorcentajeEmpleado: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 50.0
+  }
   }, {
     sequelize,
     modelName: 'Servicios',

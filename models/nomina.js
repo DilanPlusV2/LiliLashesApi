@@ -16,7 +16,9 @@ module.exports = (sequelize, DataTypes) => {
   Nomina.init({
     IdUsuario: DataTypes.INTEGER,
     NombreUsuario: DataTypes.STRING,
-    Pago: DataTypes.INTEGER
+    Pago: DataTypes.INTEGER,
+    fechaInicio: DataTypes.DATE,
+    fechaFin: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'Nomina',
