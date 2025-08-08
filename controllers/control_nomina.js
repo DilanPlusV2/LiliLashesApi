@@ -269,24 +269,28 @@ const detallesNomina = async (req, res) => {
       return res.status(400).json({ message: 'fechaInicio y fechaFin son requeridos' });
     }
 
-    // Normalizamos fechas para Bogotá
-    const inicioDate = moment.tz(fechaInicio, 'YYYY-MM-DD', 'America/Bogota').startOf('day').toDate();
-    const finDate = moment.tz(fechaFin, 'YYYY-MM-DD', 'America/Bogota').endOf('day').toDate();
+    // Fechas exactas en Bogotá
+    const inicioLocal = moment.tz(fechaInicio, 'YYYY-MM-DD', 'America/Bogota').startOf('day');
+    const finLocal = moment.tz(fechaFin, 'YYYY-MM-DD', 'America/Bogota').endOf('day');
 
     // Buscamos usuario
     const usuario = await models.Usuarios.findByPk(idUsuario);
-    const nombreUsuario = usuario ? `${usuario.nombres} ${usuario.apellidos || ''}`.trim() : '';
+    const nombreUsuario = usuario
+      ? `${usuario.nombres} ${usuario.apellidos || ''}`.trim()
+      : '';
 
-    // Traer reservas del rango
+    // Traer reservas del rango en hora local
     const reservas = await models.Reservas.findAll({
       where: {
         IdUsuario: idUsuario,
-        Fecha: { [Op.between]: [inicioDate, finDate] }
+        Fecha: {
+          [Op.between]: [inicioLocal.toDate(), finLocal.toDate()]
+        }
       },
       order: [['Fecha', 'ASC'], ['Hora', 'ASC']]
     });
 
-    if (!reservas || reservas.length === 0) {
+    if (reservas.length === 0) {
       return res.status(200).json({
         nombreUsuario,
         fechaInicio,
@@ -296,26 +300,23 @@ const detallesNomina = async (req, res) => {
       });
     }
 
-    // Obtenemos servicios de una sola vez para evitar N+1
+    // Traer servicios de una sola vez
     const servicioIds = [...new Set(reservas.map(r => r.IdServicio).filter(Boolean))];
     const servicios = await models.Servicios.findAll({ where: { id: servicioIds } });
-    const serviciosMap = servicios.reduce((map, s) => {
-      map[s.id] = s;
-      return map;
-    }, {});
+    const serviciosMap = Object.fromEntries(servicios.map(s => [s.id, s]));
 
-    // Agrupamos por día exacto (UTC → Bogotá)
+    // Agrupar por día local
     const agrupado = {};
     for (const reserva of reservas) {
       const servicio = serviciosMap[reserva.IdServicio];
-      const precio = servicio ? (Number(servicio.CostoServicio) || 0) : 0;
-      const porcentajeEmpleado = servicio ? (Number(servicio.PorcentajeEmpleado ?? 50) || 50) : 50;
+      const precio = servicio ? Number(servicio.CostoServicio) || 0 : 0;
+      const porcentajeEmpleado = servicio ? Number(servicio.PorcentajeEmpleado ?? 50) || 50 : 50;
 
       const montoEmpleado = (precio * porcentajeEmpleado) / 100;
       const montoEmpresa = precio - montoEmpleado;
 
-      // Fecha corregida a zona Bogotá
-      const dia = moment.utc(reserva.Fecha).tz('America/Bogota').format('YYYY-MM-DD');
+      // Fecha en hora local
+      const dia = moment(reserva.Fecha).tz('America/Bogota').format('YYYY-MM-DD');
 
       if (!agrupado[dia]) {
         agrupado[dia] = {
@@ -340,13 +341,13 @@ const detallesNomina = async (req, res) => {
       });
     }
 
-    // Ordenamos las filas
+    // Filas ordenadas
     const filas = Object.values(agrupado).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-    // Totales
-    const totalEmpleado = filas.reduce((sum, f) => sum + f.montoEmpleado, 0);
-    const totalEmpresa = filas.reduce((sum, f) => sum + f.montoEmpresa, 0);
-    const totalDia = filas.reduce((sum, f) => sum + f.montoDia, 0);
+    // Totales redondeados al final
+    const totalEmpleado = Math.round(filas.reduce((sum, f) => sum + f.montoEmpleado, 0));
+    const totalEmpresa = Math.round(filas.reduce((sum, f) => sum + f.montoEmpresa, 0));
+    const totalDia = Math.round(filas.reduce((sum, f) => sum + f.montoDia, 0));
 
     return res.status(200).json({
       nombreUsuario,
